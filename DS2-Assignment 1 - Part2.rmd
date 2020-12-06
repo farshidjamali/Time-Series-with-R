@@ -1,0 +1,154 @@
+# DS2-Assignment 1
+#rm(list = ls())
+# install knitr package
+install.packages('knitr')
+# load knitr
+library(knitr)
+
+```{r setup, include=FALSE} knitr_opts_chunk$set(echo = TRUE, fig.align = 'center', out.width = '80%')```
+
+
+#Oil data
+##reading the downloaded csv file.
+
+```{r}
+#setting the working directory to desktop
+setwd("C:\\users\\user\\Desktop\\")
+
+#importing the downloaded csv file
+wti <- read.csv("RWTCm.csv")
+
+#creating the date column with desired format 
+wti$date <- as.Date(paste(wti$date, '-01', sep = ''),'%B-%Y-%d' )
+
+#we can check to see the nature of imported data by using following commands.
+#head(wti)
+str(wti)
+```
+```{r}
+# plotting the price
+plot(wti$price, type = 'l', xlab = 'time (months)', main = 'Monthly Oil Prices')
+legend('topleft', legend = c('Max Price = 133.88 ', 'Min Price = 11.35'))
+#plotting the acf for price
+acf(wti$price)
+```
+## 2.2 Exploratory analysis
+### 2.2.1 Divide the series into a training set (up to 2019 inclusively) and testing set (all the rest)
+```{r}
+## there are severla ways to divid the dataset into train and test. th following commented code can also be used.
+
+# we divide the datase in test and train from row 408, where we know that year 2019 ends.
+ 
+#bound = 408
+#train <- ( wti[1:bound, ] )             
+#test <-  ( wti[(bound+1):nrow(wti), ] )
+#train <- ts( wti[1:bound, ] )             
+#test <- ts ( wti[(bound+1):nrow(wti), ] )
+#head(train)
+#tail(train)
+#head(test)
+#tail(test)
+
+split_series <- split(wti,wti$date < as.Date('2020-01-01'))
+train <- ts(as.data.frame(split_series[2], col.names = '')$price, start = 1986, frequency = 12)
+
+cat ("head of train:\n")
+head(train)
+cat("\ntail of train:\n")
+tail(train)
+
+test <- ts(as.data.frame(split_series[1],col.names = '')$price, start = 2020, frequency = 12)
+cat ("\nhead of test:\n")
+head(test)
+cat("\ntail of test:\n")
+tail(test)
+```
+### 2.2.2 Logarithm the series.
+# because we can see that there is exponantial behaviour in our data
+```{r}
+trainLog <- log(train)
+```
+### 2.2.3 Estimate the linear trend by the least squares procedure.
+```{r}
+trend_fit_afterLog <- lm (trainLog ~ time(trainLog))
+# regress logarithm of time series values to time.
+coef(trend_fit_afterLog)
+```
+### 2.2.4 Deterend the series.
+```{r}
+trend <- fitted(trend_fit_afterLog)
+trainDeterended <- trainLog - trend
+
+plot(trainLog, type = 'l', xlab = 'date', ylab = 'price', main = 'WIT price and extracted trend')
+lines(as.vector(time(trainLog)), trend , col = 'Blue')
+legend('topleft', legend = c('WTI price', 'trend'), col = c('black','blue'), lty = 1:1, cex = 1.2)
+
+plot(trainDeterended, type ='l', xlab = 'date', ylab = 'price', main = 'Deterended WTI price train set')
+```
+2.2.5 fit arima(2,1,2) to the training data
+```{r}
+arima_fit <- arima (trainDeterended, order = c(2,1,2))
+arima_fit
+```
+
+## 2.3 forcasting in the order, inverse to the exploratory steps
+##2.3.1 forcast your arima model for the period of training set.
+```{r}
+forecast <- predict (arima_fit,n.ahead = length(test))
+forecast
+```
+## 2.3.2 extrapolate your linear trend to this period and add it to your armia forecast.
+
+```{r}
+beta_0 <- trend_fit_afterLog$coefficients[1]
+beta_1 <- trend_fit_afterLog$coefficients[2]
+forecast_with_trend <- forecast$pred + beta_0 +beta_1 *time(forecast$pred)
+forecast_with_trend
+```
+## 2.3.3 exponentiate the result
+```{r}
+forecast_exp <- exp (forecast_with_trend)
+forecast_exp
+```
+
+## 2.4 evaluation of the forecast qulity
+## 2.4.1 plot the forecast and real training in the same axis.
+```{r}
+past_ten <- tail(train,10)
+upper <- forecast_exp + exp (forecast$se)
+lower <- forecast_exp - exp (forecast$se)
+
+plot(test, type = 'l', main = 'Test time-series vs forecasted with trend, exponent and history',
+     ylab = 'values', xlab = 'time',ylim = c (min(test, forecast_exp, past_ten), max(test, forecast_exp, past_ten)))
+
+lines(forecast_exp, col = 'red')
+lines(upper, lty = 2, lwd = 2 , col = 'chartreuse')
+lines(lower, lty = 2, lwd = 2 , col = 'chartreuse')
+
+abline(v = min (time(test)), col = 'blue')
+
+legend('bottomleft', legend = c('real test', 'predicted', 'where forecast starts', 'confidence interval'), 
+       col = c('black', 'red', 'blue', 'chartreuse'), lty = c (rep(1,4),2), cex = 0.7)
+```
+
+## 2.3.6 plot the residuals and their acf
+##### we know that residuals are real values minus forecast.###
+###those residuals sum to zero but these are just inoventions and do not need to sum to zero. so the variance is not the same as mse.###
+```{r}
+resid_forecast <- test - forecast_exp
+
+plot(resid_forecast, type = 'p', ylab = 'residuals', main = 'residuals plot for forecast')
+lines(lowess(resid_forecast), col='red')
+abline(h=0 , lty =3 )
+
+acf(resid_forecast, main = 'ACF of forecast residuals')
+
+```
+### 2.3.4 estimate the forecast error
+```{r}
+mse <- sum (resid_forecast^2)/ length(resid_forecast)
+cat("MSE:", mse, "\n")
+sum_res <- sum(resid_forecast)
+cat("sum_res:", sum_res, "\n")
+cat("Variance of Residuals:", var (resid_forecast))
+```
