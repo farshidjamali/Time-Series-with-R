@@ -114,7 +114,6 @@ forecast_exp
 ## 2.4 evaluation of the forecast qulity
 ## 2.4.1 plot the forecast and real training in the same axis.
 ```{r}
-past_ten <- tail(train,10)
 upper <- forecast_exp + exp (forecast$se)
 lower <- forecast_exp - exp (forecast$se)
 
