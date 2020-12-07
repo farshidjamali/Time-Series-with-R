@@ -140,7 +140,7 @@ forecastmdl_exp <- exp(forecastmdl_trend)
 ```
  
 # 1.4 Evaluation of the results
-## 1.4.1 Plot the forecast and real training set in the same axes.
+## 1.4.1 Plot the forecast and test set in the same axes.
 
 ```{r}
 forecast_se_exp <- exp(forecast_mdl$se)
