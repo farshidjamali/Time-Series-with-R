@@ -56,7 +56,7 @@ plot(sim_trend, xlab = 'Time', ylab = 'Values',
 ```{r}
 sim_exp <- exp(sim_trend)
 plot(sim_exp, xlab = 'Time', ylab = 'Values', 
-     main = paste('exponential function of', arima_title, 'with trend'))
+     main = paste('exponential function with trend'))
 ```
 
 ## 1.2 Exploratory analysis in the order, inverse to the simulation steps.
@@ -183,7 +183,7 @@ ccf(test_sim, forecastmdl_exp, main = 'CCF of test time-series and forecast')
 ### 1.4.3 PLot the residuals and their acf.
 
 ```{r}
-forecast_res <- test_sim - forecast_exp
+forecast_res <- test_sim - forecastmdl_exp
 
 plot(forecast_res, type = 'p', ylab = 'Residuals',
      main = 'Residuals plot for forecast')
